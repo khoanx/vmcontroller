@@ -1,0 +1,29 @@
+<?xml version="1.0"?>
+<VirtualBox xmlns="http://www.innotek.de/VirtualBox-settings" version="1.10-macosx">
+  <Global>
+    <ExtraData>
+      <ExtraDataItem name="GUI/LastVMSelected" value="3da27f6a-ebfe-47b5-9164-b5472a9f7a49"/>
+      <ExtraDataItem name="GUI/LastWindowPostion" value="335,184,770,550"/>
+      <ExtraDataItem name="GUI/UpdateCheckCount" value="2"/>
+      <ExtraDataItem name="GUI/UpdateDate" value="1 d, 2010-06-23, stable"/>
+    </ExtraData>
+    <MachineRegistry>
+      <MachineEntry uuid="{3da27f6a-ebfe-47b5-9164-b5472a9f7a49}" src="Machines/testVM1/testVM1.xml"/>
+      <MachineEntry uuid="{2573ee4f-b251-4004-8954-f670b3629469}" src="Machines/testVM2/testVM2.xml"/>
+      <MachineEntry uuid="{38c79148-323f-416d-8357-c4d923fa9d4d}" src="Machines/noHostOnlyNW/noHostOnlyNW.xml"/>
+      <MachineEntry uuid="{f83c07bb-1585-40be-bbdd-00c8765864b2}" src="Machines/noNW/noNW.xml"/>
+    </MachineRegistry>
+    <MediaRegistry>
+      <HardDisks/>
+      <DVDImages/>
+      <FloppyImages/>
+    </MediaRegistry>
+    <NetserviceRegistry>
+      <DHCPServers>
+        <DHCPServer networkName="HostInterfaceNetworking-vboxnet0" IPAddress="192.168.56.100" networkMask="255.255.255.0" lowerIP="192.168.56.101" upperIP="192.168.56.254" enabled="1"/>
+      </DHCPServers>
+    </NetserviceRegistry>
+    <SystemProperties defaultMachineFolder="Machines" defaultHardDiskFolder="HardDisks" defaultHardDiskFormat="VDI" remoteDisplayAuthLibrary="VRDPAuth" webServiceAuthLibrary="VRDPAuth" LogHistoryCount="3"/>
+    <USBDeviceFilters/>
+  </Global>
+</VirtualBox>
