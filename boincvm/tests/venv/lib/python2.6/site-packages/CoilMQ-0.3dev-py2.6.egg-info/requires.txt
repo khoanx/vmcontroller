@@ -1,0 +1,8 @@
+distribute
+stomper==0.2.2
+
+[daemon]
+python-daemon
+
+[sqlalchemy]
+SQLAlchemy

@@ -1,0 +1,4 @@
+
+    [console_scripts]
+    coilmq = coilmq.start:main
+    
