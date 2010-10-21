@@ -1,11 +1,13 @@
 from __future__ import print_function
 from boincvm.common import StompProtocolFactory, StompProtocol
+from boincvm.common.StompProtocol import MsgSender 
 
 from twisted.test import proto_helpers
 from twisted.trial import unittest
 from twisted.internet import task, error
 
 import stomper
+import inject
 import logging
 
 logging.basicConfig(level=logging.DEBUG, format='%(message)s', )
@@ -66,15 +68,42 @@ class TestStompProtocolFactory(unittest.TestCase):
     self.assertEquals(self.factory.retries-1, connector.connectionAttempts)
 
 
+class TestMsgSender(unittest.TestCase):
 
+  def setUp(self):
+    factory = StompProtocolFactory(USER, PASS, FakeEngine)
 
+    self.protocol = factory.buildProtocol(('127.0.0.1',0)) #addr isn't used anyway: we are faking it
+    self.fakeTransport = proto_helpers.StringTransport()
 
+  def test_initialization(self):
+    @inject.param('msgSender', MsgSender)
+    def testTrue(msgSender):
+      self.assertTrue( msgSender.senderFunc )
+ 
+    @inject.param('msgSender', MsgSender)
+    def testFalse(msgSender):
+      self.assertFalse( msgSender.senderFunc )
 
+    testFalse()
+    self.protocol.makeConnection( self.fakeTransport )
+    testTrue()
 
+  def test_sendMsg(self):
+    self.protocol.makeConnection( self.fakeTransport )
+    self.fakeTransport.clear()
+    @inject.param('msgSender', MsgSender)
+    def send(msgSender):
+      msgSender.sendMsg( 'foobar' )
+
+    send()
+    dataInTheWire = self.fakeTransport.value()
+    expected = 'foobar'
+
+    self.assertEquals(expected, dataInTheWire)
 
 
 class TestStompProtocol(unittest.TestCase):
-
 
   def setUp(self):
     factory = StompProtocolFactory(USER, PASS, FakeEngine)

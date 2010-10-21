@@ -85,7 +85,6 @@ def start(config, brokerTimeout = 60.0):
   password = config.get('Broker', 'password')
 
   stompProtocolFactory = StompProtocolFactory(HostStompEngine(), username, password)
-
  
   #HostXMLRPCService(config).makeEngineAccesible(hostEngine)
 

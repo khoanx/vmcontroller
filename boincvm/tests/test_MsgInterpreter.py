@@ -1,4 +1,5 @@
-from boincvm.common import MsgInterpreter, EntityDescriptor, BaseWord
+from boincvm.common.BaseStompEngine import MsgInterpreter
+from boincvm.common import EntityDescriptor, BaseWord
 
 from twisted.trial import unittest
 
@@ -39,14 +40,14 @@ inject.register( injector )
 subject = FakeSubject('FakeSubject')
 injector.bind( 'subject', to=subject) #injected into BaseWord. It's either Host or VM in practice
 
-words = ( AWord, )
+words = dict( (('AWord', AWord),) )
 injector.bind( 'words', to=words ) #gets injected into MsgInterpreter
 
 
 class TestMsgInterpreter(unittest.TestCase):
 
   def setUp(self):
-    self.msgInterpreter = MsgInterpreter.MsgInterpreter()
+    self.msgInterpreter = MsgInterpreter()
 
 
   def test_interpret(self):

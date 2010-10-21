@@ -12,16 +12,18 @@ import time
 import inject
 
 @inject.appscope
-class HostStompEngine(BaseStompEngine.BaseStompEngine):
+class HostStompEngine(BaseStompEngine):
   
   logger = logging.getLogger(support.discoverCaller())
 
-  def __init__(self, stompProtocol):
-    super( HostStompEngine, self ).__init__(stompProtocol)
+  #@inject.param('host', Host)
+  def __init__(self, host):
+    super( HostStompEngine, self ).__init__()
+
 
   def connected(self, msg):
     #once connected, subscribe
-    self.stompProtocol.sendStompMessage( stomper.subscribe(destinations.CONN_DESTINATION)) )
-    self.stompProtocol.sendStompMessage( stomper.subscribe(destinations.CMD_RES_DESTINATION) )
+    self.msgSender.sendMsg( stomper.subscribe(destinations.CONN_DESTINATION)) 
+    self.msgSender.sendMsg( stomper.subscribe(destinations.CMD_RES_DESTINATION))
 
 
