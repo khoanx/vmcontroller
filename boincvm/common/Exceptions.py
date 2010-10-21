@@ -10,3 +10,11 @@ class ConfigError(Exception):
 
   def __str__(self):
     return "Configuration error: %s" % self._msg
+
+class NotInitialized(Exception):
+  def __init__(self, msg):
+    self._msg = msg
+
+  def __str__(self):
+    return "Instance isn't fully initialized: %s" % self._msg
+
