@@ -1,13 +1,22 @@
 from boincvm.common import support, Exceptions, uuid
-from boincvm.common import BaseWord
+from boincvm.common.BaseWord import BaseWord
+from boincvm.common import destinations
+
+import inspect
+import sys
+
+def getWords():
+  currentModule = sys.modules[__name__]
+  return dict(inspect.getmembers(currentModule, inspect.isclass))
 
 class PING(BaseWord):
   def howToSay(self, dst):
-    self._frame.headers['to'] = dst.id
-    self._frame.headers['destination'] = CMD_REQ_DESTINATION
-    self._frame.headers['ping-id'] = uuid.uuid1()
+    self.frame.cmd = 'SEND'
+    self.frame.headers['to'] = dst.id
+    self.frame.headers['destination'] = CMD_REQ_DESTINATION
+    self.frame.headers['ping-id'] = uuid.uuid1()
 
-    return self._frame.pack()
+    return self.frame.pack()
   
 class PONG(BaseWord):
   def listenAndAct(self, msg):
@@ -16,9 +25,11 @@ class PONG(BaseWord):
 
 class CMD_RUN(BaseWord):
   def howToSay(self, host, to, cmdId, cmd, args=(), env={}, path=None, fileForStdin=''):
+    self.frame.cmd = 'SEND'
+
     headers = {}
 
-    headers['destination'] = CMD_REQ_DESTINATION
+    headers['destination'] = destinations.CMD_REQ_DESTINATION
     headers['to'] = to
     headers['cmd-id'] = cmdId
 
@@ -29,9 +40,9 @@ class CMD_RUN(BaseWord):
     headers['path'] = path
     headers['fileForStdin'] = fileForStdin
 
-    self._frame.headers = headers
+    self.frame.headers = headers
 
-    return self._frame.pack()
+    return self.frame.pack()
 
 class CMD_RESULT(BaseWord):
   def listenAndAct(self, host, resultsMsg):
@@ -42,8 +53,9 @@ class CMD_RESULT(BaseWord):
 
 class HELLO(BaseWord):
   def howToSay(self, vm):
-    self._frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip}
-    return self._frame.pack()
+    self.frame.cmd = 'SEND'
+    self.frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip}
+    return self.frame.pack()
 
   def listenAndAct(self, host, msg):
     headers = msg['headers']
