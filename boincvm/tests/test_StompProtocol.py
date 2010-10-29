@@ -1,6 +1,8 @@
 from __future__ import print_function
 from boincvm.common import StompProtocolFactory, StompProtocol
-from boincvm.common.StompProtocol import MsgSender 
+
+from StringIO import StringIO 
+from ConfigParser import SafeConfigParser
 
 from twisted.test import proto_helpers
 from twisted.trial import unittest
@@ -12,33 +14,20 @@ import logging
 
 logging.basicConfig(level=logging.DEBUG, format='%(message)s', )
 
-
-class FakeEngine(object):
-  def __init__(self, proto):
-    pass
-
-  def react(self, data):
-    if data == "do something!":
-      return "aye aye sir"
-    else:
-      return None
-
-USER = "user"
-PASS = "pass"
+import config
+config.configure()
 
 class TestStompProtocolFactory(unittest.TestCase):
-
   class _MyFakeConnector( proto_helpers._FakeConnector ):
     connectionAttempts = 0
     def connect(self):
       self.connectionAttempts += 1
 
-
   #God bless Python!
   proto_helpers._FakeConnector = _MyFakeConnector
 
   def setUp(self):
-    self.factory = StompProtocolFactory(USER, PASS, FakeEngine)
+    self.factory = StompProtocolFactory()
 
   def _fakeConnect(self_):
     self_.connectionAttempts += 1
@@ -68,49 +57,16 @@ class TestStompProtocolFactory(unittest.TestCase):
     self.assertEquals(self.factory.retries-1, connector.connectionAttempts)
 
 
-class TestMsgSender(unittest.TestCase):
-
-  def setUp(self):
-    factory = StompProtocolFactory(USER, PASS, FakeEngine)
-
-    self.protocol = factory.buildProtocol(('127.0.0.1',0)) #addr isn't used anyway: we are faking it
-    self.fakeTransport = proto_helpers.StringTransport()
-
-  def test_initialization(self):
-    @inject.param('msgSender', MsgSender)
-    def testTrue(msgSender):
-      self.assertTrue( msgSender.senderFunc )
- 
-    @inject.param('msgSender', MsgSender)
-    def testFalse(msgSender):
-      self.assertFalse( msgSender.senderFunc )
-
-    testFalse()
-    self.protocol.makeConnection( self.fakeTransport )
-    testTrue()
-
-  def test_sendMsg(self):
-    self.protocol.makeConnection( self.fakeTransport )
-    self.fakeTransport.clear()
-    @inject.param('msgSender', MsgSender)
-    def send(msgSender):
-      msgSender.sendMsg( 'foobar' )
-
-    send()
-    dataInTheWire = self.fakeTransport.value()
-    expected = 'foobar'
-
-    self.assertEquals(expected, dataInTheWire)
-
-
 class TestStompProtocol(unittest.TestCase):
 
   def setUp(self):
-    factory = StompProtocolFactory(USER, PASS, FakeEngine)
+    factory = StompProtocolFactory()
 
     self.protocol = factory.buildProtocol(('127.0.0.1',0)) #addr isn't used anyway: we are faking it
     self.fakeTransport = proto_helpers.StringTransport()
 
+  def tearDown(self):
+    self.fakeTransport.clear()
 
   def test_connectionMade(self):
     self.protocol.makeConnection( self.fakeTransport )
@@ -118,7 +74,7 @@ class TestStompProtocol(unittest.TestCase):
     #the STOMP broker
 
     dataInTheWire = self.fakeTransport.value()
-    expected = stomper.connect(USER, PASS)
+    expected = stomper.connect(config.USER, config.PASS)
 
     self.assertEquals(expected, dataInTheWire)
 
@@ -137,5 +93,15 @@ class TestStompProtocol(unittest.TestCase):
     dataInTheWire = self.fakeTransport.value()
     expected = ''
     self.assertEquals( dataInTheWire, expected )
+
+  def test_sendMsg(self):
+    self.protocol.makeConnection( self.fakeTransport )
+    self.fakeTransport.clear()
+    self.protocol.sendMsg( 'foobar' )
+
+    dataInTheWire = self.fakeTransport.value()
+    expected = 'foobar'
+
+    self.assertEquals(expected, dataInTheWire)
 
 

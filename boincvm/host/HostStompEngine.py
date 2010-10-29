@@ -10,20 +10,20 @@ import stomper
 import logging
 import time
 import inject
+import pdb 
 
 @inject.appscope
 class HostStompEngine(BaseStompEngine):
   
   logger = logging.getLogger(support.discoverCaller())
 
-  #@inject.param('host', Host)
-  def __init__(self, host):
+  def __init__(self):
     super( HostStompEngine, self ).__init__()
 
 
   def connected(self, msg):
     #once connected, subscribe
-    self.msgSender.sendMsg( stomper.subscribe(destinations.CONN_DESTINATION)) 
-    self.msgSender.sendMsg( stomper.subscribe(destinations.CMD_RES_DESTINATION))
+    return ( stomper.subscribe(destinations.CONN_DESTINATION), 
+             stomper.subscribe(destinations.CMD_RES_DESTINATION) )
 
 

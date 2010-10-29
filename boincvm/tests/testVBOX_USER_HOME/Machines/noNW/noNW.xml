@@ -13,6 +13,7 @@
         <HardwareVirtExNestedPaging enabled="true"/>
         <HardwareVirtExVPID enabled="true"/>
         <PAE enabled="false"/>
+        <HardwareVirtForce enabled="false"/>
       </CPU>
       <Memory RAMSize="32" PageFusion="false"/>
       <HID Pointing="PS2Mouse" Keyboard="PS2Keyboard"/>

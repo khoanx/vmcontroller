@@ -2,7 +2,7 @@
 <VirtualBox xmlns="http://www.innotek.de/VirtualBox-settings" version="1.10-macosx">
   <Global>
     <ExtraData>
-      <ExtraDataItem name="GUI/LastVMSelected" value="3da27f6a-ebfe-47b5-9164-b5472a9f7a49"/>
+      <ExtraDataItem name="GUI/LastVMSelected" value="f83c07bb-1585-40be-bbdd-00c8765864b2"/>
       <ExtraDataItem name="GUI/LastWindowPostion" value="335,184,770,550"/>
       <ExtraDataItem name="GUI/UpdateCheckCount" value="2"/>
       <ExtraDataItem name="GUI/UpdateDate" value="1 d, 2010-06-23, stable"/>
@@ -14,7 +14,9 @@
       <MachineEntry uuid="{f83c07bb-1585-40be-bbdd-00c8765864b2}" src="Machines/noNW/noNW.xml"/>
     </MachineRegistry>
     <MediaRegistry>
-      <HardDisks/>
+      <HardDisks>
+        <HardDisk uuid="{f6ebb36c-0186-48ce-9c2c-86d8bc7210ff}" location="/Users/dgquintas/Code/vmcontroller2/boincvm/tests/testVMImages/image1/cernvm-1.6.0-x86.vmdk" format="VMDK" type="Normal"/>
+      </HardDisks>
       <DVDImages/>
       <FloppyImages/>
     </MediaRegistry>
