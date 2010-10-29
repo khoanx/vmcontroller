@@ -1,4 +1,5 @@
 from twisted.trial import unittest
+from twisted.test import proto_helpers
 
 import sys
 from StringIO import StringIO 
@@ -8,52 +9,15 @@ import inject
 import stomper
 import uuid
 
-from boincvm.host import Host, HyperVisorController, HostWords
-from boincvm.common.StompProtocol import MsgSender
+from boincvm.host import Host, HostWords
 from boincvm.common import EntityDescriptor, Exceptions, destinations
 
 logging.basicConfig(level=logging.DEBUG, \
     format='%(message)s', )
 
-class FakeSubject(object):
-  #it only contains a fake descriptor
-  def __init__(self, anId):
-    self.descriptor = EntityDescriptor(anId)
-    self.stuffDone = False
-
-  def doStuff(self):
-    self.stuffDone = True
-
-class FakeMsgSender(object):
-  def __init__(self):
-    self.data = ""
-
-  def sendMsg(self, msg):
-    self.data += msg
-
-def getConfig():
-  cfg = \
-"""
-[Hypervisor]
-hypervisor=VirtualBox
-hypervisor_helpers_path=
-"""
-  configFile = StringIO(cfg)
-  config = SafeConfigParser()
-  config.readfp(configFile)
-  configFile.close()
-
-  return config
-
-injector = inject.Injector()
-inject.register(injector)
-
-injector.bind('config', to=getConfig)
-injector.bind('hvController', to=HyperVisorController)
-injector.bind('words', to=HostWords.getWords ) 
-injector.bind('subject', to=FakeSubject('FakeSubject')) 
-
-injector.bind(MsgSender, to=FakeMsgSender ) 
+import config
+injector = config.configure()
+injector.bind('words', to=HostWords.getWords )
 
 class TestVMRegistry(unittest.TestCase):
 
@@ -115,6 +79,7 @@ class TestHost(unittest.TestCase):
 
 class TestCommandRegistry(unittest.TestCase):
 
+  stompProtocol = inject.attr('stompProtocol')
 
   def setUp(self):
     self.cmdRegistry = Host.CommandRegistry()
@@ -127,16 +92,19 @@ class TestCommandRegistry(unittest.TestCase):
     for d in self.descriptors:
       self.cmdRegistry.vmRegistry.addVM( d )
 
+    self.fakeTransport = proto_helpers.StringTransport()
+
   def tearDown(self):
-    self.cmdRegistry.msgSender.data = ''
+    self.fakeTransport.clear()
 
   def test_sendCmdRequest(self):
+    self.stompProtocol.makeConnection( self.fakeTransport )
+    self.fakeTransport.clear() #discard connection frames
+
     for vmName, vmId in zip(self.names, self.ids):
-      self.cmdRegistry.msgSender.data = ''
       self.cmdRegistry.sendCmdRequest(vmName, 'fooCmd')
       
-      rxdFrame = stomper.unpack_frame(self.cmdRegistry.msgSender.data)
-
+      rxdFrame = stomper.unpack_frame( self.fakeTransport.value() )
 
       self.assertEquals('SEND', rxdFrame['cmd'])
       self.assertEquals('CMD_RUN', rxdFrame['body'])
@@ -151,13 +119,14 @@ class TestCommandRegistry(unittest.TestCase):
       self.assertEquals( headers['destination'], destinations.CMD_REQ_DESTINATION )
 
       self.assertEquals( headers['to'], vmId )
+      self.fakeTransport.clear() #discard connection frames
 
 
       ###########
 
       self.assertIn(headers['cmd-id'], self.cmdRegistry._cmdReqsSent)
 
-  def test_processCmdResult(self): 
+#  def test_processCmdResult(self): 
 
     #depends on the implementation of VMWords
 

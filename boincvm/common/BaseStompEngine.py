@@ -1,5 +1,4 @@
 from boincvm.common import support
-from boincvm.common.StompProtocol import MsgSender 
 
 import stomper
 import logging
@@ -41,11 +40,9 @@ class BaseStompEngine(stomper.Engine):
   
   logger = logging.getLogger(support.discoverCaller())
 
-  @inject.param('msgSender', MsgSender)
   @inject.param('msgInterpreter', MsgInterpreter)
-  def __init__(self, msgSender, msgInterpreter):
+  def __init__(self, msgInterpreter):
     super( BaseStompEngine, self ).__init__()
-    self.msgSender = msgSender  #protected
     self._msgInterpreter = msgInterpreter
 
   def ack(self, msg):
@@ -61,5 +58,5 @@ class BaseStompEngine(stomper.Engine):
 
     self.logger.info("Received a %s message." % cmd)
     self.logger.debug("Headers: %s ; Body: %s" % (rxdFrame['headers'], rxdFrame['body']))
-    return stomper.Engine.react(self, msg)
+    return list(stomper.Engine.react(self, msg))
 

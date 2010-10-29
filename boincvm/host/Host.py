@@ -5,7 +5,6 @@ XMLRPC facade.
 """
 
 from boincvm.common import support, Exceptions
-from boincvm.common.StompProtocol import MsgSender
 import HyperVisorController
 
 
@@ -103,9 +102,9 @@ class CommandRegistry(object):
   """
   logger = logging.getLogger(support.discoverCaller())
 
-  msgSender = inject.attr('msgSender', MsgSender)
   words = inject.attr('words')
   vmRegistry = inject.attr('vmRegistry', VMRegistry)
+  stompProtocol = inject.attr('stompProtocol')
 
   def __init__(self):
     self._cmdReqsSent = {} #cmdId: dict with keys (timestamp, to, cmd, args, env, path)
@@ -122,7 +121,7 @@ class CommandRegistry(object):
                  cmdId, cmd, args, \
                  env, path, fileForStdin )
 
-    self.msgSender.sendMsg( toSend )
+    self.stompProtocol.sendMsg( toSend )
 
     requestKeys = ('timestamp', 'toVmName', 'toVmId', 'cmd', 'args', 'env', 'path', 'fileForStdin')
     requestValues = (time.time(), toVmName, toVmId,  cmd, args, env, path, fileForStdin )

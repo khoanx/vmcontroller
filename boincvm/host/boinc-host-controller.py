@@ -1,7 +1,7 @@
 #!/bin/env python
 
 from boincvm.common.StompProtocol import StompProtocolFactory
-from boincvm.host import HostStompEngine
+from boincvm.host.HostStompEngine import HostStompEngine
 #from boincvm_host.xmlrpc.HostXMLRPCService import HostXMLRPCService
 
 from twisted.internet import reactor
@@ -78,16 +78,13 @@ def start(config, brokerTimeout = 60.0):
     logger.fatal("Broker not available after %.1f seconds. Giving up", brokerTimeout)
     return -1
 
-  #host side logic
-  host = config.get('Broker', 'host') 
-  port = int(config.get('Broker', 'port'))
-  username = config.get('Broker', 'username')
-  password = config.get('Broker', 'password')
 
-  stompProtocolFactory = StompProtocolFactory(HostStompEngine(), username, password)
+  stompProtocolFactory = StompProtocolFactory()
  
   #HostXMLRPCService(config).makeEngineAccesible(hostEngine)
 
+  host = config.get('Broker', 'host') 
+  port = int(config.get('Broker', 'port'))
   reactor.connectTCP(host, port, stompProtocolFactory)
   reactor.run()
 
@@ -108,6 +105,8 @@ if __name__ == '__main__':
     inject.register(injector)
 
     injector.bind('config', to=config)
+    injector.bind('stompEngine', to=HostStompEngine) 
+    
 
     exit(start())
 
