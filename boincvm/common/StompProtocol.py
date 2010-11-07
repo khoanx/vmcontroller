@@ -9,7 +9,7 @@ import logging
 import pdb 
 
 
-@inject.appscope
+#@inject.appscope
 class StompProtocol(Protocol):
   
   #transport available at self.transport, as set by BaseProtocol.makeConnection
@@ -60,13 +60,12 @@ class StompProtocolFactory(ReconnectingClientFactory):
   logger = logging.getLogger( support.discoverCaller() )
 
   __stompProtocol = inject.attr('stompProtocol')
+  initialDelay = delay = 5.0
+  factor = 1.0
+  jitter = 0.0
 
   def __init__(self):
     #retry every 5 seconds, with no back-off
-    self.delay = 5.0 
-    self.factor = 1.0
-    self.jitter = 0.0
-
     self.protocol = lambda: self.__stompProtocol #sigh... self.protocol must be callable
 
   def clientConnectionLost(self, connector, reason):

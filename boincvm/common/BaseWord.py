@@ -15,6 +15,7 @@ class BaseWord(object):
     self.subject = subject
 
     self.frame = stomper.Frame()
+    self.frame.cmd = 'SEND'    
     self.frame.body = self.name
 
     headers = {}

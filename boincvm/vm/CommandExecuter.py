@@ -1,4 +1,4 @@
-import boincvm_common.support as support
+from boincvm.common import support
 
 from twisted.internet import protocol, defer, error, reactor, utils
 

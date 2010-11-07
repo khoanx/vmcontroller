@@ -1,30 +1,38 @@
 from boincvm.common import support, Exceptions
 from boincvm.common import BaseWord
+from boincvm.common import destinations
 
 import CommandExecuter
+import sys
+import inspect 
+import fnmatch
+
+def getWords():
+  currentModule = sys.modules[__name__]
+  return dict(inspect.getmembers(currentModule, inspect.isclass))
 
 class PING(BaseWord):
   def listenAndAct(self, msg):
-    if fnmatch.fnmatch(self.src.descriptor.id, headers['to']): 
-      self._vm.pong(self)
+    if fnmatch.fnmatch(self.subject.descriptor.id, headers['to']): 
+      self.subject.pong(self)
 
 class PONG(BaseWord):
-  def howToSay(self, vm, pingMsg):
+  def howToSay(self, pingMsg):
     headers = {}
-    headers['destination'] = CMD_RES_DESTINATION
+    headers['destination'] = destination.CMD_RES_DESTINATION
     headers['ping-id'] = pingMsg['headers']['ping-id'] 
-    self._frame.headers = headers
+    self.frame.headers = headers
 
-    return self._frame.pack()
+    return self.frame.pack()
 
 
 class CMD_RUN(BaseWord):
-  def listenAndAct(self, vm, msg):
+  def listenAndAct(self, msg):
     headers = msg['headers']
     #TODO: sanity checks for the headers
     #if the VM's id matches the given 'to' destination,
     #either trivially or "pattern"-ly
-    if fnmatch.fnmatch(vm.id, headers['to']): 
+    if fnmatch.fnmatch(self.subject.descriptor.id, headers['to']): 
       paramsList = ('cmd', 'args', 'env', 'path', 'fileForStdin')
       params = {}
       for p in paramsList:
@@ -36,45 +44,35 @@ class CMD_RUN(BaseWord):
       cmdExecuter.executeCommand(
           ).addCallback( cmdExecuter.getExecutionResults
           ).addErrback( cmdExecuter.errorHandler 
-          ).addCallback( vm.dealWithExecutionResults
+          ).addCallback( self.subject.dealWithExecutionResults
           )
 
 class CMD_RESULT(BaseWord):
-  def howToSay(self, vm, results):
+  def howToSay(self, results):
     #results is a dict with keys = ('cmd-id', 'out', 'err', 'finished', 'exitCodeOrSignal', 'resources' )
 
-    self._frame.headers['destination'] = CMD_RES_DESTINATION
-    self._frame.headers['cmd-id'] = results['cmd-id']
+    self.frame.headers['destination'] = destinations.CMD_RES_DESTINATION
+    self.frame.headers['cmd-id'] = results['cmd-id']
 
     results = support.serialize(results)
 
-    self._frame.body = ' '.join( (self._frame.body, results) )
+    self.frame.body = ' '.join( (self.frame.body, results) )
 
-    return self._frame.pack()
+    return self.frame.pack()
 
 
 class HELLO(BaseWord):
-  def howToSay(self, vm):
-    self._frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip}
-    return self._frame.pack()
-
-  def listenAndAct(self, host, msg):
-    headers = msg['headers']
-    vmId = headers['id']
-    vmIp = headers['ip']
-    host.addVM(vmId, vmIp)
+  def howToSay(self):
+    self.frame.headers = {'destination': destinations.CONN_DESTINATION, 
+        'descriptor': self.subject.descriptor.serialize() }
+    return self.frame.pack()
 
 
 class BYE(BaseWord):
-  def howToSay(self, vm):
-    self._frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip}
-    return self._frame.pack()
-
-class STILL_ALIVE(BaseWord):
-  def howToSay(self, vm):
-    self._frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip }
-    return self._frame.pack()
-
+  def howToSay(self):
+    self.frame.headers = {'destination': destinations.CONN_DESTINATION, 
+      'descriptor': self.subject.descriptor.serialize() }
+    return self.frame.pack()
 
 #because ain't ain't a word!
 class AINT(BaseWord):

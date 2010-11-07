@@ -6,7 +6,7 @@ XMLRPC facade.
 
 from boincvm.common import support, Exceptions
 import HyperVisorController
-
+from boincvm.common import EntityDescriptor
 
 from twisted.internet import defer, reactor
 from twisted.web import xmlrpc, server, resource
@@ -41,6 +41,7 @@ class VMRegistry(object):
     """
     @param vmDescriptor an instance of L{EntityDescriptor}
     """
+    
     name = self.getNameForId( vmDescriptor.id )
     vmDescriptor.name = name
     self._vms[vmDescriptor.id] = vmDescriptor
@@ -104,29 +105,14 @@ class CommandRegistry(object):
 
   words = inject.attr('words')
   vmRegistry = inject.attr('vmRegistry', VMRegistry)
-  stompProtocol = inject.attr('stompProtocol')
 
   def __init__(self):
     self._cmdReqsSent = {} #cmdId: dict with keys (timestamp, to, cmd, args, env, path)
     self._cmdReqsRetired = {} #finished cmdReqsSent
     self._cmdReqsRcvd = {}
 
-  def sendCmdRequest(self, toVmName, cmd, args=(), env={}, path=None, fileForStdin=''):
-    #get id for name
-    toVmId = self.vmRegistry.getIdForName(toVmName)
-    cmdId = str(uuid.uuid4())
-
-    toSend = self.words['CMD_RUN'](). \
-             howToSay(self, toVmId, \
-                 cmdId, cmd, args, \
-                 env, path, fileForStdin )
-
-    self.stompProtocol.sendMsg( toSend )
-
-    requestKeys = ('timestamp', 'toVmName', 'toVmId', 'cmd', 'args', 'env', 'path', 'fileForStdin')
-    requestValues = (time.time(), toVmName, toVmId,  cmd, args, env, path, fileForStdin )
-    self._cmdReqsSent[cmdId] = dict( zip( requestKeys, requestValues) )
-    self.logger.info("Requested execution of command '%s' with cmd-id '%s'" % (cmd, cmdId))
+  def addCmdRequest(self, cmdId, requestInfoDict):
+    self._cmdReqsSent[cmdId] = requestInfoDict
 
   def processCmdResult(self, resultsMsg):
     serializedResults = resultsMsg['body'].split(None, 1)[1]
@@ -156,7 +142,6 @@ class CommandRegistry(object):
     if not details:
       details = self._cmdReqsRetired.get(cmdId)
     return support.serialize(details)
-
 
 
 @inject.appscope
@@ -223,15 +208,15 @@ class HostXMLRPCService(xmlrpc.XMLRPC, object):
   
   @inject.param('config')
   @inject.param('hvController')
-  @inject.param('host')
-  def __init__(self, config, hvController, host):
+  @inject.param('subject')
+  def __init__(self, config, hvController, subject):
     xmlrpc.XMLRPC.__init__(self)
     self._config = config
 
     self._hvController = hvController
     self._createHVControllerMethods()
 
-    self._host = host
+    self._host = subject 
 
   #from xmlrpc.XMLRPC
   def _getFunction(self, functionPath):
@@ -255,34 +240,33 @@ class HostXMLRPCService(xmlrpc.XMLRPC, object):
   ## Operation on the VMs  ##
   ###########################
   def xmlrpc_listRegisteredVMs(self):
-    registeredVMIds = self.host.getRegisteredVMs()
+    registeredVMIds = self._host.getRegisteredVMs()
     return map( self._getNameForId, registeredVMIds )
 
   def xmlrpc_runCmd(self, toVmName, cmd, args=(), env={}, path=None, fileForStdin=''):
-    cmdId = str(uuid.uuid4())
-    return self.host.requestCommandExecution(toVmName, cmdId, cmd, args, env, path, fileForStdin)
+    cmdId = self._host.sendCmdRequest(toVmName, cmd, args, env, path, fileForStdin)
     return cmdId
 
   def xmlrpc_ping(self, toVmName, timeout_secs=5.0): #FIXME: magic number of seconds
     vmId = self._getIdForName(toVmName)
-    return self._engine.ping(vmId,timeout_secs)
+    return self._host.ping(vmId,timeout_secs)
 
   def xmlrpc_listFinishedCmds(self):
-    return self._engine.listFinishedCmds()
+    return self._host.listFinishedCmds()
 
   def xmlrpc_getCmdResults(self, cmdId):
-    return self._engine.popCmdResults(cmdId)
+    return self._host.getCmdResults(cmdId)
 
   def xmlrpc_getCmdDetails(self, cmdId): 
-    return self._engine.getCmdDetails(cmdId)
+    return self._host.getCmdDetails(cmdId)
 
   def xmlrpc_cpFileToVM(self, vmName, pathToLocalFileName, pathToRemoteFileName = None ):
     vmId = self._getIdForName(vmName)
-    return self._engine.cpFileToVM(vmId, pathToLocalFileName, pathToRemoteFileName )
+    return self._host.cpFileToVM(vmId, pathToLocalFileName, pathToRemoteFileName )
 
   def xmlrpc_cpFileFromVM(self, vmName, pathToRemoteFileName, pathToLocalFileName = None):
     vmId = self._getIdForName(vmName)
-    return self._engine.cpFileFromVM(vmId, pathToRemoteFileName, pathToLocalFileName )
+    return self._host.cpFileFromVM(vmId, pathToRemoteFileName, pathToLocalFileName )
 
 
   ################################################
@@ -356,28 +340,61 @@ class Host(object):
   cmdRegistry = inject.attr('cmdRegistry', CommandRegistry)
   vmRegistry = inject.attr('vmRegistry', VMRegistry)
   fileTxs = inject.attr('fileTxs', FileTxs)
-  xmlrpcServer = inject.attr('xmlrpcServer', HostXMLRPCService)
 
-  hostWords = inject.attr('words')
+  words = inject.attr('words')
+  stompProtocol = inject.attr('stompProtocol')
 
+  def __init__(self):
+    self._descriptor = EntityDescriptor('Host-ID')
+ 
+  @property
+  def descriptor(self):
+    return self._descriptor
+
+  
+  def sendCmdRequest(self, toVmName, cmd, args=(), env={}, path=None, fileForStdin=''):
+    #get id for name
+    toVmId = self.vmRegistry.getIdForName(toVmName)
+    cmdId = str(uuid.uuid4())
+
+    toSend = self.words['CMD_RUN']().  \
+             howToSay(toVmId, \
+                 cmdId, cmd, args, \
+                 env, path, fileForStdin )
+
+    requestKeys = ('timestamp', 'toVmName', 'toVmId', 'cmd', 'args', 'env', 'path', 'fileForStdin')
+    requestValues = (time.time(), toVmName, toVmId,  cmd, args, env, path, fileForStdin )
+ 
+    self.stompProtocol.sendMsg( toSend )
+    self.logger.info("Requested execution of command '%s' with cmd-id '%s'" % (cmd, cmdId))
     
-  def processCommandExecutionResults():
-    pass
+    self.cmdRegistry.addCmdRequest(cmdId, dict( zip( requestKeys, requestValues) ))
+    return cmdId
 
-  def addVM():
-    pass
+  def processCmdResult(self, resultsMsg):
+    self.cmdRegistry.processCmdResult(resultsMsg)
+
+  #XXX: make it possible to be blocking?
+  def getCmdResults(self, cmdId):
+    return self.cmdRegistry.popCmdResults(cmdId)
+
+################################
+
+  def addVM(self, vmDescriptor):
+    self.vmRegistry.addVM(vmDescriptor)
 
   def removeVM():
-    pass
+    self.vmRegistry.removeVM(vmId)
 
-  def copyFileToVM():
-    pass
+################################
 
-  def copyFileFromVM():
-    pass
+  def cpFileToVM(self, vmId, pathToLocalFileName, pathToRemoteFileName = None ):
+    self.fileTxs.cpFileToVM(vmId, pathToLocalFileName, pathToRemoteFileName)
 
-  def getDescriptor():
-    pass
+  def cpFileFromVM(self, vmId, pathToRemoteFileName, pathToLocalFileName = None):
+    self.fileTxs.cpFileFromVM(vmId, pathToRemoteFileName, pathToLocalFileName)
+
+    
 
 
 

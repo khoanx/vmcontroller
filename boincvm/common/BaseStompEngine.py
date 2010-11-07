@@ -6,7 +6,7 @@ import inject
 
 
 
-@inject.appscope
+#@inject.appscope
 class MsgInterpreter(object):
 
   logger = logging.getLogger(support.discoverCaller())
@@ -32,7 +32,6 @@ class MsgInterpreter(object):
     word.listenAndAct(msg)
 
 
-@inject.appscope
 class BaseStompEngine(stomper.Engine):
   """
   G{classtree BaseStompEngine}
@@ -40,7 +39,7 @@ class BaseStompEngine(stomper.Engine):
   
   logger = logging.getLogger(support.discoverCaller())
 
-  @inject.param('msgInterpreter', MsgInterpreter)
+  @inject.param('msgInterpreter', MsgInterpreter, scope=inject.appscope)
   def __init__(self, msgInterpreter):
     super( BaseStompEngine, self ).__init__()
     self._msgInterpreter = msgInterpreter
@@ -58,5 +57,10 @@ class BaseStompEngine(stomper.Engine):
 
     self.logger.info("Received a %s message." % cmd)
     self.logger.debug("Headers: %s ; Body: %s" % (rxdFrame['headers'], rxdFrame['body']))
-    return list(stomper.Engine.react(self, msg))
+    try:
+      res = list(stomper.Engine.react(self, msg))
+    except Exception, e:
+      self.logger.error(str(e))
+      res = stomper.NO_REPONSE_NEEDED
+    return res
 

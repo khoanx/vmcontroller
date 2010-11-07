@@ -1,6 +1,4 @@
-from boincvm.common import support, Exceptions, uuid
-from boincvm.common.BaseWord import BaseWord
-from boincvm.common import destinations
+from boincvm.common import support, Exceptions, uuid, BaseWord, destinations, EntityDescriptor
 
 import inspect
 import sys
@@ -11,7 +9,6 @@ def getWords():
 
 class PING(BaseWord):
   def howToSay(self, dst):
-    self.frame.cmd = 'SEND'
     self.frame.headers['to'] = dst.id
     self.frame.headers['destination'] = CMD_REQ_DESTINATION
     self.frame.headers['ping-id'] = uuid.uuid1()
@@ -24,8 +21,7 @@ class PONG(BaseWord):
 
 
 class CMD_RUN(BaseWord):
-  def howToSay(self, host, to, cmdId, cmd, args=(), env={}, path=None, fileForStdin=''):
-    self.frame.cmd = 'SEND'
+  def howToSay(self, to, cmdId, cmd, args=(), env={}, path=None, fileForStdin=''):
 
     headers = {}
 
@@ -45,38 +41,24 @@ class CMD_RUN(BaseWord):
     return self.frame.pack()
 
 class CMD_RESULT(BaseWord):
-  def listenAndAct(self, host, resultsMsg):
+  def listenAndAct(self, resultsMsg):
     #we receive the command execution results,
     #as sent by one of the vms (in serialized form)
-    host.processCmdResult(resultsMsg)
+    self.subject.processCmdResult(resultsMsg)
 
 
 class HELLO(BaseWord):
-  def howToSay(self, vm):
-    self.frame.cmd = 'SEND'
-    self.frame.headers = {'destination': CONN_DESTINATION, 'id': vm.id, 'ip': vm.ip}
-    return self.frame.pack()
-
-  def listenAndAct(self, host, msg):
+  def listenAndAct(self, msg):
     headers = msg['headers']
-    vmId = headers['id']
-    vmIp = headers['ip']
-    host.addVM(vmId, vmIp)
+    vmDescriptor = EntityDescriptor.deserialize(headers['descriptor'])
+    self.subject.addVM(vmDescriptor)
 
 
 class BYE(BaseWord):
-  def listenAndAct(self, host, msg):
+  def listenAndAct(self, msg):
     headers = msg['headers']
     who = headers['id']
-    host.removeVM(who)
-
-class STILL_ALIVE(BaseWord):
-  def listenAndAct(self, host, msg):
-    headers = msg['headers']
-    vmId = headers['id']
-    vmIp = headers['ip']
-    host.keepVMForNow(vmId, vmIp)
-
+    self.subject.removeVM(who)
 
 #because ain't ain't a word!
 class AINT(BaseWord):
