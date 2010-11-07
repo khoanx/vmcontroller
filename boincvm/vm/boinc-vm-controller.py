@@ -1,9 +1,9 @@
 #!/bin/env python
 
-from boincvm_common.stomp.StompProtocol import StompProtocolFactory
-import boincvm_common.support as support
+from boincvm.common import support, Exceptions
+from boincvm.common import StompProtocolFactory, StompProtocol
 
-from stomp.VMStompEngine import VMStompEngine
+from boincvm.vm import VMStompEngine, VMWords
 
 from twisted.internet import reactor, protocol
 from twisted.application import internet, service
@@ -12,6 +12,7 @@ from ConfigParser import SafeConfigParser
 import os
 import tempfile
 import logging
+import inject
 
 logging.basicConfig(level=logging.DEBUG, \
     format='%(asctime)s - %(name)s - %(levelname)s: %(message)s', 
@@ -24,10 +25,10 @@ def start(config):
   username = config.get('Broker', 'username')
   password = config.get('Broker', 'password')
 
-  vmengine = VMStompEngine(config)
-  stompProtocolFactory = StompProtocolFactory(vmengine, username, password)
   
-  spawnChirpServerProcess(config)
+  stompProtocolFactory = StompProtocolFactory()
+  
+  #spawnChirpServerProcess(config)
 
   #reactor.connectTCP(host, port, stompProtocolFactory)
   #reactor.run()
@@ -107,12 +108,24 @@ def spawnChirpServerProcess(config):
 
 application = service.Application("boinc-vm-controller")
 
+
+
 configFile = '/etc/boinc-vm-controller/VMConfig.cfg' #FIXME: HARDCODED
 if not os.path.isfile(configFile):
   configFile = os.path.basename(configFile) 
 
 config = SafeConfigParser()
 config.read(configFile)
+
+injector = inject.Injector()
+inject.register(injector)
+
+injector.bind('config', to=config )
+injector.bind('words', to=VMWords.getWords, scope=inject.appscope)
+injector.bind('stompProtocol', to=StompProtocol, scope=inject.appscope) 
+injector.bind('stompEngine', to=VMStompEngine, scope=inject.appscope) 
+injector.bind('subject', to=VMStompEngine, scope=inject.appscope) 
+
 
 service = start(config)
 service.setServiceParent(application)

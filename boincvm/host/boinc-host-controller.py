@@ -1,8 +1,7 @@
 #!/bin/env python
 
-from boincvm.common.StompProtocol import StompProtocolFactory
-from boincvm.host.HostStompEngine import HostStompEngine
-#from boincvm_host.xmlrpc.HostXMLRPCService import HostXMLRPCService
+from boincvm.common import StompProtocolFactory, StompProtocol
+from boincvm.host import HostStompEngine, HostXMLRPCService, HostWords, Host, HyperVisorController
 
 from twisted.internet import reactor
 import coilmq.start
@@ -81,7 +80,8 @@ def start(config, brokerTimeout = 60.0):
 
   stompProtocolFactory = StompProtocolFactory()
  
-  #HostXMLRPCService(config).makeEngineAccesible(hostEngine)
+  xmlrpcService = HostXMLRPCService()
+  xmlrpcService.makeEngineAccesible()
 
   host = config.get('Broker', 'host') 
   port = int(config.get('Broker', 'port'))
@@ -105,7 +105,13 @@ if __name__ == '__main__':
     inject.register(injector)
 
     injector.bind('config', to=config)
-    injector.bind('stompEngine', to=HostStompEngine) 
+    injector.bind('words', to=HostWords.getWords)
+    injector.bind('stompEngine', to=HostStompEngine, scope=inject.appscope) 
+    injector.bind('stompProtocol', to=StompProtocol, scope=inject.appscope) 
+    injector.bind('subject', to=Host) 
+    injector.bind('hvController', to=HyperVisorController)
+    
+    
     
 
     exit(start())

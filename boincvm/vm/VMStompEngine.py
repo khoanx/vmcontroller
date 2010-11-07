@@ -1,32 +1,43 @@
-import boincvm_common.stomp.protocol.MsgInterpreter as MsgInterpreter
-import boincvm_common.stomp.protocol.words as words
-import boincvm_common.stomp.protocol.destinations as destinations
-import boincvm_common.stomp.BaseStompEngine as BaseStompEngine
-import boincvm_common.support as support
+from boincvm.common import EntityDescriptor
+from boincvm.common import BaseStompEngine 
+from boincvm.common import support, Exceptions 
+from boincvm.common import destinations
+
 
 import stomper
 import logging
 import netifaces
+import inject
 
 from twisted.internet.task import LoopingCall
 
 
-class VMStompEngine(BaseStompEngine.BaseStompEngine):
+class VMStompEngine(BaseStompEngine):
   """ This basically models a client (ie, VM instance)"""
   
   logger = logging.getLogger(support.discoverCaller())
 
-  def __init__(self, config):
-    msgInterpreter = MsgInterpreter.MsgInterpreter(self)
-    BaseStompEngine.BaseStompEngine.__init__(self, msgInterpreter)
+  config = inject.attr("config")
+  words = inject.attr("words")
+  stompProtocol = inject.attr('stompProtocol', scope=inject.appscope)
+
+
+  def __init__(self):
+    super( VMStompEngine, self).__init__()
  
-    networkInterface = config.get('VM', 'network_interface')
-    period = int(config.get('VM', 'beacon_interval'))
+    networkInterface = self.config.get('VM', 'network_interface')
 
-    self._startSendingBeacons = lambda: LoopingCall( self._sendBeacon ).start(period, now=False)
+    networkInterfaceData = netifaces.ifaddresses(networkInterface)
+    self._id, self._ip = [ networkInterfaceData[af][0]['addr'] for af in (netifaces.AF_LINK, netifaces.AF_INET) ]
+    self._id = self._id.upper()
+    self.logger.debug("VM instantiated with id/ip %s/%s" % (self._id, self._ip) )
 
-    self._initId(networkInterface)
+    self._descriptor = EntityDescriptor(self._id, ip=self._ip)
 
+
+  @property
+  def descriptor(self):
+    return self._descriptor
 
   def connected(self, msg):
     res = []
@@ -34,15 +45,12 @@ class VMStompEngine(BaseStompEngine.BaseStompEngine):
     res.append(stomper.subscribe(destinations.CMD_REQ_DESTINATION))
 
     #announce ourselves
-    res.append( words.HELLO().howToSay(self) )
+    res.append( self.words['HELLO']().howToSay() )
  
-    #FIXME: even better whould be to wait for the HELLO back from the host
-    self._startSendingBeacons()
-
     return tuple(res)
 
   def pong(self, pingMsg):
-    self.protocol.sendStompMessage( words.PONG().howToSay(self, pingMsg) )
+    self.stompProtocol.sendMsg( self.words['PONG']().howToSay(pingMsg) )
 
   def dealWithExecutionResults(self, results):
     resultsFields = ('cmd-id', 'out', 'err', 'finished', 'exitCodeOrSignal', 'resources' )
@@ -50,7 +58,7 @@ class VMStompEngine(BaseStompEngine.BaseStompEngine):
 
     resultsDict = dict( zip( resultsFields, results ) )
     #self.protocol got injected by StompProtocol
-    self.protocol.sendStompMessage( words.CMD_RESULT().howToSay(self, resultsDict) )
+    self.stompProtocol.sendMsg( self.words['CMD_RESULT']().howToSay(resultsDict) )
 
   @property
   def id(self):
@@ -63,16 +71,4 @@ class VMStompEngine(BaseStompEngine.BaseStompEngine):
   def __repr__(self):
     return "VM with ID/IP: %s/%s" % (self.id, self.ip)
 
-  def _initId(self, iface):
-    networkInterfaceData = netifaces.ifaddresses(iface)
-    self._id, self._ip = [ networkInterfaceData[af][0]['addr'] for af in (netifaces.AF_LINK, netifaces.AF_INET) ]
-    self._id = self._id.upper()
-    self.logger.debug("VM instantiated with id/ip %s/%s" % (self._id, self._ip) )
-
-  def _sendBeacon(self):
-    self.logger.info("%s stayin' aliiiive" % self)
-    self.protocol.sendStompMessage( words.STILL_ALIVE().howToSay(self) )
-
-
-
-
+  

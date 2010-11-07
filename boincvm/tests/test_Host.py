@@ -97,7 +97,42 @@ class TestCommandRegistry(unittest.TestCase):
   def tearDown(self):
     self.fakeTransport.clear()
 
-  def test_sendCmdRequest(self):
+  def test_processCmdResult(self): 
+   #depends on the implementation of VMWords
+   self.cmdRegistry.sendCmdRequest(self.names[0], 'fooCmd')
+   rxdFrame = stomper.unpack_frame(self.cmdRegistry.msgSender.data)
+   cmdId = rxdFrame['headers']['cmd-id']
+   self.assertIn(cmdId, self.cmdRegistry._cmdReqsSent)
+   reqSent = self.cmdRegistry._cmdReqsSent[cmdId]
+
+   self.cmdRegistry.processCmdResult(rxdFrame)
+
+   self.assertIn(cmdId, self._cmdReqsRcvd)
+   self.assertEquals(reqSent, self._cmdReqsRcvd[cmdId])
+   self.assertEquals(reqSent, self._cmdReqsRetired[cmdId])
+
+
+class TestHost(unittest.TestCase):
+
+  stompProtocol = inject.attr('stompProtocol')
+
+  def setUp(self):
+    self.cmdRegistry = Host.CommandRegistry()
+
+    self.names = ("testVM1", "testVM2")
+    self.ids = ("DE:AD:BE:EF:00:01", "DE:AD:BE:EF:00:02")
+    
+    self.descriptors = map( lambda i: EntityDescriptor(i), self.ids)
+ 
+    for d in self.descriptors:
+      self.cmdRegistry.vmRegistry.addVM( d )
+
+    self.fakeTransport = proto_helpers.StringTransport()
+
+  def tearDown(self):
+    self.fakeTransport.clear()
+
+  def test_CmdRequest(self):
     self.stompProtocol.makeConnection( self.fakeTransport )
     self.fakeTransport.clear() #discard connection frames
 
@@ -120,26 +155,5 @@ class TestCommandRegistry(unittest.TestCase):
 
       self.assertEquals( headers['to'], vmId )
       self.fakeTransport.clear() #discard connection frames
-
-
-      ###########
-
-      self.assertIn(headers['cmd-id'], self.cmdRegistry._cmdReqsSent)
-
-#  def test_processCmdResult(self): 
-
-    #depends on the implementation of VMWords
-
-#    self.cmdRegistry.sendCmdRequest(self.names[0], 'fooCmd')
-#    rxdFrame = stomper.unpack_frame(self.cmdRegistry.msgSender.data)
-#    cmdId = rxdFrame['headers']['cmd-id']
-#    self.assertIn(cmdId, self.cmdRegistry._cmdReqsSent)
-#    reqSent = self.cmdRegistry._cmdReqsSent[cmdId]
-#
-#    self.cmdRegistry.processCmdResult(rxdFrame)
-#
-#    self.assertIn(cmdId, self._cmdReqsRcvd)
-#    self.assertEquals(reqSent, self._cmdReqsRcvd[cmdId])
-#    self.assertEquals(reqSent, self._cmdReqsRetired[cmdId])
 
 
